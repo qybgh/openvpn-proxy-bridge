@@ -1,0 +1,9 @@
+.DS_Store
+*.log
+*.ovpn
+auth.txt
+*.state
+*.tmp
+*.bak
+__pycache__/
+*.pyc

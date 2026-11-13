@@ -1,0 +1,58 @@
+name: Bug report
+description: Report a reproducible problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Redact credentials, VPN profiles, company domains, internal IP addresses, and private certificates.
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and chip
+    validations:
+      required: true
+  - type: input
+    id: openvpn
+    attributes:
+      label: OpenVPN version
+    validations:
+      required: true
+  - type: input
+    id: proxy
+    attributes:
+      label: Outbound proxy client and mode
+    validations:
+      required: true
+  - type: dropdown
+    id: action
+    attributes:
+      label: Affected action
+      options:
+        - Install
+        - Start
+        - Stop
+        - Status
+        - Update credentials
+        - Configure proxy
+        - Uninstall
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and redacted logs
+    validations:
+      required: true
