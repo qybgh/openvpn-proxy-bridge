@@ -35,6 +35,8 @@ case "$VERSION" in
     ;;
 esac
 
+export TZ=UTC
+
 if [ "$SKIP_CHECKS" -eq 0 ]; then
   "$ROOT/tests/check.sh" --skip-build
 fi
