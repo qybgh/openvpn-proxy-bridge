@@ -12,7 +12,20 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install ripgrep
-        run: brew install ripgrep
+      - name: Install development tools
+        run: brew install ripgrep shellcheck shfmt bats-core
       - name: Run checks
-        run: ./tests/check.sh
+        run: ./tests/check.sh --skip-build
+      - name: Build release package
+        run: ./scripts/build-release.sh --skip-checks
+      - name: Verify release package
+        run: |
+          archive="dist/openvpn-proxy-bridge-$(cat VERSION).tar.gz"
+          (cd dist && shasum -a 256 -c "$(basename "$archive").sha256")
+          tar -tzf "$archive" | grep -q '/setup-company-vpn.command$'
+          tar -tzf "$archive" | grep -q '/libexec/bin/openvpn-proxy-bridge$'
+      - name: Upload release package
+        uses: actions/upload-artifact@v6
+        with:
+          name: openvpn-proxy-bridge-${{ github.sha }}
+          path: dist/*

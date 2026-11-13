@@ -1,0 +1,40 @@
+#!/bin/bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUNDLE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+cleanup_snapshot() {
+  if [ -n "${snapshot_root:-}" ] && [ -d "$snapshot_root" ]; then
+    rm -rf "$snapshot_root"
+  fi
+}
+
+if [ "${OPB_SNAPSHOT_ACTIVE:-0}" != 1 ] && { [ "${OPB_TEST_MODE:-0}" != 1 ] || [ "${OPB_TEST_SNAPSHOT:-0}" = 1 ]; }; then
+  snapshot_root="$(mktemp -d /tmp/openvpn-proxy-bridge.XXXXXX)"
+  trap cleanup_snapshot EXIT INT TERM
+  chmod 755 "$snapshot_root"
+  cp -R "$BUNDLE_ROOT/bin" "$BUNDLE_ROOT/lib" "$BUNDLE_ROOT/assets" "$BUNDLE_ROOT/tools" "$snapshot_root/"
+  OPB_SNAPSHOT_ACTIVE=1 /bin/bash "$snapshot_root/bin/openvpn-proxy-bridge" "$@"
+  exit $?
+fi
+
+export OPB_BUNDLE_ROOT="$BUNDLE_ROOT"
+export OPB_CLI_PATH="$SCRIPT_DIR/openvpn-proxy-bridge"
+
+# shellcheck source=lib/config.sh
+source "$BUNDLE_ROOT/lib/config.sh"
+# shellcheck source=lib/common.sh
+source "$BUNDLE_ROOT/lib/common.sh"
+# shellcheck source=lib/proxy.sh
+source "$BUNDLE_ROOT/lib/proxy.sh"
+# shellcheck source=lib/openvpn.sh
+source "$BUNDLE_ROOT/lib/openvpn.sh"
+# shellcheck source=lib/homebrew.sh
+source "$BUNDLE_ROOT/lib/homebrew.sh"
+# shellcheck source=lib/service.sh
+source "$BUNDLE_ROOT/lib/service.sh"
+# shellcheck source=lib/commands.sh
+source "$BUNDLE_ROOT/lib/commands.sh"
+
+opb_main "$@"

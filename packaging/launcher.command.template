@@ -1,0 +1,12 @@
+#!/bin/bash
+set -u
+
+bundle_dir="$(cd "$(dirname "$0")" && pwd)"
+cli="$bundle_dir/libexec/bin/openvpn-proxy-bridge"
+
+if [ ! -f "$cli" ]; then
+  echo '工具包文件不完整：缺少 libexec/bin/openvpn-proxy-bridge。' >&2
+  exit 1
+fi
+
+/bin/bash "$cli" @ACTION@

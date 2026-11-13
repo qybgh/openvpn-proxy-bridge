@@ -11,16 +11,53 @@
 - OpenVPN 到公司服务器的外层连接通过本机 SOCKS5 代理转发。
 - 出海客户端改变本地代理端口后，后台服务自动跟随。
 
-使用条件：
-
-- 公司提供标准 `.ovpn` 文件。
-- 公司 VPN 只下发公司网段或主机路由，不强制接管默认路由。
-- 出海客户端提供支持 UDP 的本机 SOCKS5 代理。
-- Mac 已安装 Homebrew，当前用户具有管理员权限。
-
 工具不依赖特定出海客户端。目前已在 SakuraCat 1.4.5 的普通系统代理模式下验证主要流程。
 
+## 运行环境与依赖
+
+### 必要基础
+
+| 依赖 | 要求 | 说明 |
+|---|---|---|
+| macOS | Homebrew 当前支持的版本 | 需要 `launchd`、系统代理和管理员权限 |
+| Homebrew | 已安装 | 安装器通过 Homebrew 安装或使用 OpenVPN |
+| Python | Python 3.8+ | 用于 profile 转换、VPN 多端点解析和代理 UDP 会话清理 |
+| 出海客户端 | 本机 SOCKS5，支持 UDP | 可写入 macOS 系统代理，或允许手动填写地址和端口 |
+| 公司 VPN | 标准 `.ovpn`、账号和密码 | profile 应只下发公司路由，不使用 `redirect-gateway` 接管默认路由 |
+| 权限 | macOS 管理员权限 | 安装 LaunchDaemon、创建 `utun` 和写入 root 专用配置 |
+
+Homebrew 通常已经依赖 Xcode Command Line Tools，并由其提供 `/usr/bin/python3`。如果安装器提示没有 Python 3.8+，执行：
+
+```bash
+brew install python
+```
+
+安装器会记录实际使用的 Python 路径，后台服务不会依赖终端的临时 `PATH`。
+
+### macOS 内置组件
+
+以下命令由 macOS 提供，无需单独安装：
+
+- `/bin/bash` 和标准 Unix 命令。
+- `launchctl`、`plutil`、`scutil`、`osascript`、`sudo`。
+- `nc`、`pgrep`、`stat` 等系统工具。
+
+### 工具自动管理
+
+- Homebrew OpenVPN：不存在时自动安装。
+- OpenVPN 及其依赖：记录安装归属，卸载时只清理由本工具托管且未被其他 formula 使用的内容。
+- Python：只检测和记录，不自动卸载；如果由用户通过 Homebrew 安装，仍由用户自行管理。
+
+### 可选能力
+
+- Clash 兼容的本地控制接口：用于主动删除 OpenVPN 目标 UDP 会话。没有控制接口时，核心连接仍可使用，停止流程依靠 OpenVPN 退出通知和基础等待窗口。
+- OpenVPN Connect：仅用于停止本工具后的临时替代连接，不是本工具依赖。
+
+当前实测环境：macOS 15.7.9（Apple Silicon）、SakuraCat 1.4.5、Homebrew OpenVPN 2.7.9、Python 3.9.6。
+
 ## 快速开始
+
+请从 GitHub Releases 下载 `openvpn-proxy-bridge-<版本>.tar.gz` 并解压。源码仓库不提交生成的 `.command` 文件；普通用户应使用 Release 工具包。
 
 ### 1. 修复执行权限
 
@@ -46,6 +83,12 @@ chmod u+x ./*.command
 
 安装脚本只完成配置，**不会自动连接公司 VPN**。
 
+安装前请确认：
+
+- 公司 VPN 服务器 IP 没有被出海客户端设置为直连或拦截。
+- 公司业务域名已按需要设置为直连。
+- `python3 --version` 返回 3.8 或更高版本。
+
 ### 3. 连接
 
 双击 `start-company-vpn.command`。若手机收到钉钉或其他二次认证，请及时确认。
@@ -70,6 +113,12 @@ Initialization Sequence Completed
 
 所有脚本均可在 Finder 中双击运行。
 
+从源码参与开发时，统一入口为：
+
+```bash
+bin/openvpn-proxy-bridge <子命令>
+```
+
 ### 启动与停止
 
 启动脚本具有幂等保护：
@@ -80,7 +129,7 @@ Initialization Sequence Completed
 - 没有 TLS 回包：清理并延迟重试一次。
 - `AUTH_FAILED`：停止连接，不连续重试。
 
-停止脚本会清理后台服务、OpenVPN 子进程、公司路由、运行配置和代理 UDP 会话。停止状态在重启 Mac 后继续保持，直到再次运行启动脚本。
+停止脚本会清理后台服务、OpenVPN 子进程、公司路由、运行配置和代理 UDP 会话，并等待基础 8 秒释放窗口。停止状态在重启 Mac 后继续保持，直到再次运行启动脚本。
 
 ### 更新账号或密码
 
@@ -118,6 +167,16 @@ Initialization Sequence Completed
 
 无法自动发现时，使用 `configure-proxy.command` 手动配置。
 
+### 提示未找到 Python 3.8+
+
+运行：
+
+```bash
+brew install python
+```
+
+然后重新执行安装脚本。Python 是运行时依赖，不能只在安装完成后删除。
+
 ### 公司 VPN 未连接
 
 运行 `status-company-vpn.command`，重点查看：
@@ -129,7 +188,27 @@ Initialization Sequence Completed
 | `Peer Connection Initiated` | 已建立 TLS 通道 |
 | `Initialization Sequence Completed` | 隧道连接成功 |
 
-脚本在没有 TLS 回包时会自动清理、等待旧会话释放并重试一次。仍然失败时，先检查出海代理，再运行状态脚本查看日志。
+当 VPN 域名解析到多个地址时，OpenVPN 会以 5 秒为单端点轮询超时尝试备用地址。外层等待预算会按实际端点数量计算，并受 130 秒总连接超时限制；全部端点都没有 TLS 回包时，脚本会清理、重新解析地址并重试一次。仍然失败时，先检查出海代理，再运行状态脚本查看日志。
+
+如果所有 VPN 端点都没有 TLS 回包，但本机 SOCKS5 端口仍在监听，通常表示当前出海节点的 UDP 转发不可用。切换出海节点或完全重启出海客户端后，再运行启动脚本。
+
+同时检查出海客户端的自定义路由规则。公司 VPN 服务器 IP 必须按默认规则走代理；设置为直连会绕过出海节点，导致本地网络无法访问 VPN UDP 端口。默认规则已经走代理时无需额外创建 VPN 服务器代理规则。
+
+### SSH 正常但内网页面打不开
+
+SSH 通常不使用 macOS 系统代理，会直接按系统路由进入 OpenVPN，因此可能正常；浏览器会进入出海客户端的系统代理，如果公司业务域名没有直连规则，请求会被发往出海节点并绕过本机 OpenVPN。
+
+在出海客户端中使用以下分流：
+
+| 目标 | 动作 |
+|---|---|
+| 公司 VPN 服务器 IP | 默认代理；不要设置为直连或拦截 |
+| 公司内网业务域名及域名后缀 | 直连 |
+| 普通出海网站 | 按出海客户端原有规则 |
+
+这里的“公司业务域名直连”表示由出海客户端交回本机网络栈，目标 IP 随后仍会按 OpenVPN 下发的精确路由进入 `utun`，并不是绕过公司 VPN。
+
+v1.1.0 会在本机把 VPN 服务器域名解析为显式 IP，再交给 SOCKS5，因此广泛的公司业务域名后缀直连规则不会命中 VPN 外层连接。只有在出海客户端的默认规则不走代理时，才需要额外添加 VPN 服务器 IP 的代理规则。
 
 ### 公司域名无法访问
 
@@ -216,3 +295,5 @@ Homebrew OpenVPN 的处理遵循安装时记录的归属：
 - 被其他 formula 使用的共享依赖会被保留。
 
 卸载不会删除 Homebrew、OpenVPN Connect 或用户原始 `.ovpn` 文件。
+
+从 v1.0.0 升级到 v1.1.0 时不支持原地覆盖。请先使用 v1.0.0 的卸载脚本完成卸载，再安装 v1.1.0。详见仓库中的 [升级说明](https://github.com/qybgh/openvpn-proxy-bridge/blob/main/docs/upgrading.md)。
