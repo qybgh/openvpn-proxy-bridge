@@ -64,8 +64,20 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
   archive="$TEMP_ROOT/dist/openvpn-proxy-bridge-$(tr -d '[:space:]' <"$ROOT/VERSION").tar.gz"
   [ -s "$archive" ]
   [ -s "$archive.sha256" ]
-  tar -tzf "$archive" | grep -q '/setup-company-vpn.command$'
-  tar -tzf "$archive" | grep -q '/libexec/bin/openvpn-proxy-bridge$'
+  archive_entries="$TEMP_ROOT/archive-entries.txt"
+  tar -tzf "$archive" >"$archive_entries"
+  grep -q '/setup-company-vpn.command$' "$archive_entries"
+  grep -q '/libexec/bin/openvpn-proxy-bridge$' "$archive_entries"
+  if sort "$archive_entries" | uniq -d | grep -q .; then
+    echo 'Release archive contains duplicate paths.' >&2
+    sort "$archive_entries" | uniq -d >&2
+    exit 1
+  fi
+  if grep -E -q '(^|/)(__pycache__/|[^/]+\.pyc$)' "$archive_entries"; then
+    echo 'Release archive contains Python bytecode.' >&2
+    grep -E '(^|/)(__pycache__/|[^/]+\.pyc$)' "$archive_entries" >&2
+    exit 1
+  fi
   checksum_name="$(awk '{print $2}' "$archive.sha256")"
   [ "$checksum_name" = "$(basename "$archive")" ]
 

@@ -22,8 +22,11 @@ jobs:
         run: |
           archive="dist/openvpn-proxy-bridge-$(cat VERSION).tar.gz"
           (cd dist && shasum -a 256 -c "$(basename "$archive").sha256")
-          tar -tzf "$archive" | grep -q '/setup-company-vpn.command$'
-          tar -tzf "$archive" | grep -q '/libexec/bin/openvpn-proxy-bridge$'
+          tar -tzf "$archive" > archive-entries.txt
+          grep -q '/setup-company-vpn.command$' archive-entries.txt
+          grep -q '/libexec/bin/openvpn-proxy-bridge$' archive-entries.txt
+          test -z "$(sort archive-entries.txt | uniq -d)"
+          ! grep -E -q '(^|/)(__pycache__/|[^/]+\.pyc$)' archive-entries.txt
       - name: Upload release package
         uses: actions/upload-artifact@v6
         with:
