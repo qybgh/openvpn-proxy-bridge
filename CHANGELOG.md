@@ -20,7 +20,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Added fast failover across multiple addresses returned for a VPN hostname with a 5-second per-endpoint poll timeout and a transport budget derived from the generated endpoint count.
 - Expanded VPN hostnames into all unique IPv4 endpoints for each connection attempt so failover does not depend on resolver address ordering.
 - Added explicit Python 3.8+ discovery, validation, and interpreter-path persistence for runtime helpers.
-- Restricted release packaging to explicit runtime files and unique archive entries so build-time Python bytecode cannot enter published artifacts.
+- Restricted release packaging to explicit runtime files, unique archive entries, and UTC-normalized timestamps so build-time Python bytecode and host timezone differences cannot affect published artifacts.
 
 ## [1.0.0] - 2026-11-13
 

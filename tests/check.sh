@@ -82,7 +82,7 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
   [ "$checksum_name" = "$(basename "$archive")" ]
 
   second_dist="$TEMP_ROOT/dist-second"
-  "$ROOT/scripts/build-release.sh" --skip-checks --output "$second_dist" >/dev/null
+  TZ=Pacific/Honolulu "$ROOT/scripts/build-release.sh" --skip-checks --output "$second_dist" >/dev/null
   cmp "$archive" "$second_dist/$(basename "$archive")"
 fi
 
