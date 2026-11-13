@@ -1,0 +1,7 @@
+setup-company-vpn.command|setup
+start-company-vpn.command|start
+stop-company-vpn.command|stop
+status-company-vpn.command|status
+update-credentials.command|update-credentials
+configure-proxy.command|configure-proxy
+uninstall-company-vpn.command|uninstall
