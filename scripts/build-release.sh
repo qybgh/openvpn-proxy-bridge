@@ -46,10 +46,33 @@ trap 'rm -rf "$STAGING"' EXIT INT TERM
 
 PACKAGE_NAME="openvpn-proxy-bridge-$VERSION"
 PACKAGE_ROOT="$STAGING/$PACKAGE_NAME"
-mkdir -p "$PACKAGE_ROOT/libexec"
+mkdir -p \
+  "$PACKAGE_ROOT/libexec/bin" \
+  "$PACKAGE_ROOT/libexec/lib" \
+  "$PACKAGE_ROOT/libexec/assets" \
+  "$PACKAGE_ROOT/libexec/tools"
 
 cp "$ROOT/README.md" "$ROOT/LICENSE" "$ROOT/VERSION" "$PACKAGE_ROOT/"
-cp -R "$ROOT/bin" "$ROOT/lib" "$ROOT/assets" "$ROOT/tools" "$PACKAGE_ROOT/libexec/"
+cp "$ROOT/bin/openvpn-proxy-bridge" "$PACKAGE_ROOT/libexec/bin/"
+cp \
+  "$ROOT/lib/commands.sh" \
+  "$ROOT/lib/common.sh" \
+  "$ROOT/lib/config.sh" \
+  "$ROOT/lib/homebrew.sh" \
+  "$ROOT/lib/openvpn.sh" \
+  "$ROOT/lib/proxy.sh" \
+  "$ROOT/lib/service.sh" \
+  "$PACKAGE_ROOT/libexec/lib/"
+cp \
+  "$ROOT/assets/com.local.proxy-openvpn.plist" \
+  "$ROOT/assets/detect-proxy.sh" \
+  "$ROOT/assets/run-openvpn.sh" \
+  "$PACKAGE_ROOT/libexec/assets/"
+cp \
+  "$ROOT/tools/cleanup_proxy_sessions.py" \
+  "$ROOT/tools/filter_profile.py" \
+  "$ROOT/tools/resolve_remotes.py" \
+  "$PACKAGE_ROOT/libexec/tools/"
 "$ROOT/scripts/generate-launchers.sh" "$PACKAGE_ROOT"
 
 chmod 755 "$PACKAGE_ROOT"/*.command
@@ -64,7 +87,7 @@ ARCHIVE="$OUTPUT_DIR/$PACKAGE_NAME.tar.gz"
 CHECKSUM="$ARCHIVE.sha256"
 COPYFILE_DISABLE=1 find "$STAGING/$PACKAGE_NAME" -print | LC_ALL=C sort |
   sed "s#^$STAGING/##" |
-  COPYFILE_DISABLE=1 tar -C "$STAGING" --uid 0 --gid 0 --uname root --gname wheel --no-xattrs -cf - -T - |
+  COPYFILE_DISABLE=1 tar -C "$STAGING" --no-recursion --uid 0 --gid 0 --uname root --gname wheel --no-xattrs -cf - -T - |
   gzip -n >"$ARCHIVE"
 (
   cd "$OUTPUT_DIR"
